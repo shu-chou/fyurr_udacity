@@ -45,6 +45,7 @@ class Venue(db.Model):
     website_link = db.Column(db.String(120))
     seeking_talent = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(120))
+    venue_shows = db.relationship('Show', backref = 'venue_show')
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -62,15 +63,16 @@ class Artist(db.Model):
     website_link = db.Column(db.String(120))
     seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(120))
+    
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
-
+    artist_shows = db.relationship('Show', backref = 'artist_show')
 
 class Show(db.Model):
    __tablename__ = 'Show'
 
    id = db.Column(db.Integer, primary_key=True)
-   venue_id = db.Column(db.String)
-   artist_id = db.Column(db.String)
+   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'))
+   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'))
    start_time = db.Column(db.DateTime)
 #----------------------------------------------------------------------------#
 # Filters.
@@ -111,6 +113,7 @@ def venues():
       dict['venues'] = []
 
       venues = db.session.query(Venue).filter_by(city = row.city, state = row.state).all()
+      print(venues)
       for venue in venues:
           venue_dict = {}
           venue_dict['id'] = venue.id
@@ -120,7 +123,7 @@ def venues():
           dict['venues'].append(venue_dict)
       data.append(dict)
    
-  # #data=[{
+  # data=[{
   #   "city": "San Francisco",
   #   "state": "CA",
   #   "venues": [{
@@ -177,9 +180,10 @@ def show_venue(venue_id):
   data = {}
   row = db.session.query(Venue).filter_by(id=int(venue_id)).all()
   for venue in row:
+    print(venue.genres)
     data['id'] = venue.id
     data['name'] = venue.name.strip()
-    data['genres'] = venue.genres
+    data['genres'] = venue.genres.replace("{", "").replace("}", "").replace('"', "").split(',')
     data['address'] = venue.address.strip()
     data['city'] = venue.city.strip()
     data['state'] = venue.state.strip()
@@ -196,7 +200,7 @@ def show_venue(venue_id):
     upcoming_shows = db.session.query(Show).filter(Show.venue_id == str(venue.id)).filter(Show.start_time > datenow).all()
     for past_show in past_shows:
         dict_past = {}
-        dict_past['artist_id'] = past_show.artist_id.strip()
+        dict_past['artist_id'] = past_show.artist_id
         dict_past['start_time'] = past_show.start_time.strftime("%Y-%m-%d %H:%M:%S")
         artists = db.session.query(Artist).filter_by(id=past_show.artist_id)
         for artist in artists:
@@ -349,7 +353,7 @@ def delete_venue(venue_id):
   try:
         db.session.delete(venue)
         db.session.commit()
-        deleted = False
+        deleted = True
         message = 'Venue deleted successfully'
   except:
         message = 'Could not delete the Venue. Please try again!!'
@@ -419,7 +423,7 @@ def show_artist(artist_id):
   for artist in row:
     data['id'] = artist.id
     data['name'] = artist.name.strip()
-    data['genres'] = artist.genres
+    data['genres'] = artist.genres.replace("{", "").replace("}", "").replace('"', "").split(',')
     data['city'] = artist.city.strip()
     data['state'] = artist.state.strip()
     data['phone'] = artist.phone.strip()
@@ -435,7 +439,7 @@ def show_artist(artist_id):
     upcoming_shows = db.session.query(Show).filter(Show.artist_id == str(artist.id)).filter(Show.start_time > datenow).all()
     for past_show in past_shows:
         dict_past = {}
-        dict_past['venue_id'] = past_show.venue_id.strip()
+        dict_past['venue_id'] = past_show.venue_id
         dict_past['start_time'] = past_show.start_time.strftime("%Y-%m-%d %H:%M:%S")
         venues = db.session.query(Venue).filter(Venue.id==past_show.venue_id)
         for venue in venues:
