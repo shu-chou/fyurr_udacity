@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_moment import Moment
 from flask import Flask
-from config import DatabaseURI
+from config import *
 
 #----------------------------------------------------------------------------#
 # App Config.
@@ -19,6 +19,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 # connect to a local postgresql database
 app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseURI.SQLALCHEMY_DATABASE_URI
+
 
 #----------------------------------------------------------------------------#
 # Models.

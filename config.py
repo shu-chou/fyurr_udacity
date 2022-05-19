@@ -19,3 +19,5 @@ class DatabaseURI:
     url = '127.0.0.1:5432'
     SQLALCHEMY_DATABASE_URI = "postgresql://{}:{}@{}/{}".format(
         username, password, url, DATABASE_NAME)
+
+

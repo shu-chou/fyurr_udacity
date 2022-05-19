@@ -2,6 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
+import json
 import dateutil.parser
 import babel
 from flask import (jsonify, 
@@ -151,37 +152,40 @@ def create_venue_form():
 def create_venue_submission():
   #This route is used to create a new venue
   form = VenueForm()
-  if form.seeking_talent.data:
-      seeking_talent = True
+  if form.validate_on_submit():
+    if form.seeking_talent.data:
+        seeking_talent = True
+    else:
+        seeking_talent = False
+    venue = Venue(
+        name = form.name.data,
+        city = form.city.data,
+        state = form.state.data,
+        address = form.address.data,
+        phone = form.phone.data,
+        genres = form.genres.data,
+        facebook_link = form.facebook_link.data,
+        image_link = form.image_link.data,
+        website_link = form.website_link.data,
+        seeking_talent = seeking_talent,
+        seeking_description = form.seeking_description.data
+      )
+    # Add venue to db
+    try: 
+      db.session.add(venue)
+      db.session.commit()
+    # on successful db insert, flash success
+      flash('Venue ' + request.form['name'] + ' was successfully listed!')
+    # on unsuccessful db insert, flash an error instead.
+    except:
+      flash('Venue ' + request.form['name'] + ' could not be added. Please try again!')
+    finally:
+      db.session.close() 
+    return render_template('pages/home.html')
   else:
-      seeking_talent = False
-  venue = Venue(
-      name = form.name.data,
-      city = form.city.data,
-      state = form.state.data,
-      address = form.address.data,
-      phone = form.phone.data,
-      genres = form.genres.data,
-      facebook_link = form.facebook_link.data,
-      image_link = form.image_link.data,
-      website_link = form.website_link.data,
-      seeking_talent = seeking_talent,
-      seeking_description = form.seeking_description.data
-    )
-  # Add venue to db
-  try: 
-    db.session.add(venue)
-    db.session.commit()
-  # on successful db insert, flash success
-    flash('Venue ' + request.form['name'] + ' was successfully listed!')
-  # on unsuccessful db insert, flash an error instead.
-  except:
-    flash('Venue ' + request.form['name'] + ' could not be added. Please try again!')
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  finally:
-     db.session.close()
-  return render_template('pages/home.html')
+    for value in form.errors.values():
+      flash(''.join(value))
+    return render_template('forms/new_venue.html', form=form)
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
@@ -291,19 +295,19 @@ def edit_artist(artist_id):
   artist = {}
   row = Artist.query.get(artist_id)
   artist['id'] = row.id
-  artist['name'] = row.name
-  artist['genres'] = row.genres
-  artist['city'] = row.city
-  artist['state'] = row.state
-  artist['phone'] = row.phone
-  artist['website'] = row.website_link
-  artist['facebook_link'] = row.facebook_link
-  artist['seeking_venue'] = row.seeking_venue
-  artist['seeking_description'] = row.seeking_description
-  artist['image_link'] = row.image_link
+  form.name.data = row.name
+  form.genres.data = row.genres
+  form.city.data = row.city
+  form.state.data = row.state
+  form.phone.data = row.phone
+  form.website_link.data = row.website_link
+  form.facebook_link.data = row.facebook_link
+  form.seeking_venue.data = row.seeking_venue
+  form.seeking_description.data = row.seeking_description
+  form.image_link.data = row.image_link
 
   #  populate form with fields from artist with ID <artist_id>
-  return render_template('forms/edit_artist.html', form=form, artist=artist)
+  return render_template('forms/edit_artist.html', form=form, artist = artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
@@ -311,49 +315,52 @@ def edit_artist_submission(artist_id):
   form= ArtistForm()
   artist = Artist.query.get(artist_id)
   #find changes
-  if form.name.data != artist.name:
-     artist.name=form.name.data
-  if form.city.data != artist.city:
-    artist.city=form.city.data
-  if form.state.data != artist.state:
-    artist.state=form.state.data
-  if form.phone.data != artist.phone:
-    artist.phone=form.phone.data
-  if form.image_link.data != artist.image_link:
-    artist.image_link=form.image_link.data
-  if form.facebook_link.data != artist.facebook_link:
-    artist.facebook_link=form.facebook_link.data
-  if form.website_link.data != artist.website_link:
-    artist.website_link=form.website_link.data
-  if form.seeking_venue.data != artist.seeking_venue:
-    artist.seeking_venue=form.seeking_venue.data
-  if form.seeking_description.data != artist.seeking_description:
-    artist.seeking_description=form.seeking_description.data
-  if form.genres.data != artist.genres: 
-    artist.genres=form.genres.data       
-  db.session.commit()
-  return redirect(url_for('show_artist', artist_id=artist_id))
+  if form.validate():
+    if form.name.data != artist.name:
+      artist.name=form.name.data
+    if form.city.data != artist.city:
+      artist.city=form.city.data
+    if form.state.data != artist.state:
+      artist.state=form.state.data
+    if form.phone.data != artist.phone:
+      artist.phone=form.phone.data
+    if form.image_link.data != artist.image_link:
+      artist.image_link=form.image_link.data
+    if form.facebook_link.data != artist.facebook_link:
+      artist.facebook_link=form.facebook_link.data
+    if form.website_link.data != artist.website_link:
+      artist.website_link=form.website_link.data
+    if form.seeking_venue.data != artist.seeking_venue:
+      artist.seeking_venue=form.seeking_venue.data
+    if form.seeking_description.data != artist.seeking_description:
+      artist.seeking_description=form.seeking_description.data
+    if form.genres.data != artist.genres: 
+      artist.genres=form.genres.data       
+    db.session.commit()
+    return redirect(url_for('show_artist', artist_id=artist_id))
+  else:
+    for value in form.errors.values():
+      flash(''.join(value))     
+    return render_template('forms/edit_artist.html', form=form, artist = artist) 
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
   form = VenueForm()
   venue = {}
-  
   #  populate form with values from venue with ID <venue_id>
-  row = db.session.query(Venue).filter_by(id=int(venue_id))
-  for data in row:
-      venue['id'] = data.id
-      venue['name'] = data.name
-      venue['genres'] = data.genres
-      venue['address'] = data.address
-      venue['city'] = data.city
-      venue['state'] = data.state
-      venue['phone'] = data.phone
-      venue['website'] = data.website_link
-      venue['facebook_link'] = data.facebook_link
-      venue['seeking_talent'] = data.seeking_talent
-      venue['seeking_description'] = data.seeking_description
-      venue['image_link'] = data.image_link
+  row = Venue.query.get(venue_id)
+  venue['id'] = row.id
+  form.name.data = row.name
+  form.genres.data = row.genres
+  form.address.data = row.address
+  form.city.data = row.city
+  form.state.data = row.state
+  form.phone.data = row.phone
+  form.website_link.data = row.website_link
+  form.facebook_link.data = row.facebook_link
+  form.seeking_talent.data = row.seeking_talent
+  form.seeking_description.data = row.seeking_description
+  form.image_link.data = row.image_link
   return render_template('forms/edit_venue.html', form=form, venue=venue)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
@@ -362,31 +369,35 @@ def edit_venue_submission(venue_id):
   form = VenueForm()
   venue = Venue.query.get(venue_id)
   #find changes
-  if form.name.data != venue.name:
-     venue.name=form.name.data
-  if form.city.data != venue.city:
-    venue.city=form.city.data
-  if form.state.data != venue.state:
-    venue.state=form.state.data
-  if form.address.data != venue.address:
-    venue.address=form.address.data
-  if form.phone.data != venue.phone:
-    venue.phone=form.phone.data
-  if form.image_link.data != venue.image_link:
-    venue.image_link=form.image_link.data
-  if form.facebook_link.data != venue.facebook_link:
-    venue.facebook_link=form.facebook_link.data
-  if form.website_link.data != venue.website_link:
-    venue.website_link=form.website_link.data
-  if form.seeking_talent.data != venue.seeking_talent:
-    venue.seeking_talent=form.seeking_talent.data
-  if form.seeking_description.data != venue.seeking_description:
-    venue.seeking_description=form.seeking_description.data
-  if form.genres.data != venue.genres: 
-    venue.genres=form.genres.data       
-  db.session.commit()
-  return redirect(url_for('show_venue', venue_id=venue_id))
-
+  if form.validate():
+    if form.name.data != venue.name:
+      venue.name=form.name.data
+    if form.city.data != venue.city:
+      venue.city=form.city.data
+    if form.state.data != venue.state:
+      venue.state=form.state.data
+    if form.address.data != venue.address:
+      venue.address=form.address.data
+    if form.phone.data != venue.phone:
+      venue.phone=form.phone.data
+    if form.image_link.data != venue.image_link:
+      venue.image_link=form.image_link.data
+    if form.facebook_link.data != venue.facebook_link:
+      venue.facebook_link=form.facebook_link.data
+    if form.website_link.data != venue.website_link:
+      venue.website_link=form.website_link.data
+    if form.seeking_talent.data != venue.seeking_talent:
+      venue.seeking_talent=form.seeking_talent.data
+    if form.seeking_description.data != venue.seeking_description:
+      venue.seeking_description=form.seeking_description.data
+    if form.genres.data != venue.genres: 
+      venue.genres=form.genres.data       
+    db.session.commit()
+    return redirect(url_for('show_venue', venue_id=venue_id))
+  else:
+    for value in form.errors.values():
+      flash(''.join(value))  
+    return render_template('forms/edit_venue.html', form=form, venue=venue)
 #  Create Artist
 #  ----------------------------------------------------------------
 
@@ -399,34 +410,39 @@ def create_artist_form():
 def create_artist_submission():
   # This route create new artist 
   form = ArtistForm() 
-  if form.seeking_venue.data:
-      seeking_venue = True
+  if form.validate():
+    if form.seeking_venue.data:
+        seeking_venue = True
+    else:
+        seeking_venue = False
+    artist = Artist(
+        name = form.name.data,
+        city = form.city.data,
+        state = form.state.data,
+        phone = form.phone.data,
+        genres = form.genres.data,
+        facebook_link = form.facebook_link.data,
+        image_link = form.image_link.data,
+        website_link = form.website_link.data,
+        seeking_venue = seeking_venue,
+        seeking_description = form.seeking_description.data
+      )
+    # Add artist to db
+    try: 
+        db.session.add(artist)
+        db.session.commit()
+    # on successful db insert, flash success
+        flash('Artist ' + request.form['name'] + ' was successfully listed!')
+    #  on unsuccessful db insert, flash an error instead.
+    except:
+        flash('Artist ' + request.form['name'] + ' could not be added. Please try again!')
+    finally:
+      db.session.close()  
+    return render_template('pages/home.html')
   else:
-      seeking_venue = False
-  artist = Artist(
-      name = form.name.data,
-      city = form.city.data,
-      state = form.state.data,
-      phone = form.phone.data,
-      genres = form.genres.data,
-      facebook_link = form.facebook_link.data,
-      image_link = form.image_link.data,
-      website_link = form.website_link.data,
-      seeking_venue = seeking_venue,
-      seeking_description = form.seeking_description.data
-    )
-  # Add artist to db
-  try: 
-      db.session.add(artist)
-      db.session.commit()
-  # on successful db insert, flash success
-      flash('Artist ' + request.form['name'] + ' was successfully listed!')
-  #  on unsuccessful db insert, flash an error instead.
-  except:
-      flash('Artist ' + request.form['name'] + ' could not be added. Please try again!')
-  finally:
-     db.session.close()  
-  return render_template('pages/home.html')
+    for value in form.errors.values():
+       flash(''.join(value)) 
+    return render_template('forms/new_artist.html', form=form)
 
 
 #  Shows
@@ -461,38 +477,29 @@ def create_shows():
 def create_show_submission():
   # This route create new show
   form= ShowForm()
-  valid_artist = db.session.get(Artist, form.artist_id.data) 
-  valid_venue = db.session.get(Venue, form.venue_id.data)
-  start_time=form.start_time.data.strftime("%Y-%m-%d %H:%M:%S")
-  if valid_artist == None and valid_venue == None:
-     error_message = 'Invalid Artist and Venue name! Please enter valid values'
-  elif valid_venue == None:
-     error_message = 'Invalid Venue name! Please enter valid value'
-  elif valid_artist == None:
-     error_message =  'Invalid Artist name! Please enter valid value' 
-  else:
-     error_message =  None
-  if  error_message == None:  
-   #Add Show to Db
+  if form.validate():
+    start_time=form.start_time.data.strftime("%Y-%m-%d %H:%M:%S")
+    #Add Show to Db
     show = Show(
-     artist_id = form.artist_id.data,
-     venue_id = form.venue_id.data,
-     start_time = start_time
-   )
+      artist_id = form.artist_id.data,
+      venue_id = form.venue_id.data,
+      start_time = start_time
+    )
     try: 
-      db.session.add(show)
-      db.session.commit()
-      # on successful db insert, flash success
-      flash('Show was successfully listed!')
-  # on unsuccessful db insert, flash an error instead.
-
+        db.session.add(show)
+        db.session.commit()
+        # on successful db insert, flash success
+        flash('Show was successfully listed!')
+    # on unsuccessful db insert, flash an error instead.
     except:
-      flash('Show could not be added. Please try again!')
+        flash('Show could not be added. Please try again!')
     finally:
-       db.session.close() 
+        db.session.close()     
+    return render_template('pages/home.html')
   else:
-   flash(error_message)        
-  return render_template('pages/home.html')
+    for value in form.errors.values():
+      flash(''.join(value))
+    return render_template('forms/new_show.html', form=form)  
 
 @app.errorhandler(404)
 def not_found_error(error):
