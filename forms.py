@@ -90,7 +90,6 @@ class VenueForm(Form):
         'image_link'
     )
     genres = SelectMultipleField(
-        # TODO implement enum restriction
         'genres', validators=[DataRequired()],
         choices=[
             ('Alternative', 'Alternative'),
@@ -192,18 +191,21 @@ class ArtistForm(Form):
             ('WY', 'WY'),
         ]
     )
-    phone = StringField(
-        # TODO implement validation logic for phone 
-        'phone',
-        validators=[DataRequired()]
-    )
-    def validate_phone(self, phone):
+     # implement validation logic for phone 
+    def validate_phone(form, field):
         try:
-            p = phonenumbers.parse(phone.data)
+            p = phonenumbers.parse(field.data)
             if not phonenumbers.is_valid_number(p):
                 raise ValueError()
         except (phonenumbers.phonenumberutil.NumberParseException, ValueError):
             raise ValidationError('Invalid phone number')
+
+    phone = StringField(
+       
+        'phone',
+        validators=[DataRequired(), validate_phone]
+    )
+    
             
     image_link = StringField(
         'image_link'
@@ -233,7 +235,6 @@ class ArtistForm(Form):
         ]
      )
     facebook_link = StringField(
-        # TODO implement enum restriction
         'facebook_link', validators=[URL()]
      )
 
